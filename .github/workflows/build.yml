@@ -1,0 +1,42 @@
+name: Build IPA
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show project info
+        run: |
+          ls
+          xcodebuild -list -project AutoClicker.xcodeproj || true
+
+      - name: Build iOS app (unsigned)
+        run: |
+          xcodebuild \
+            -project AutoClicker.xcodeproj \
+            -scheme "AutoClicker (iOS)" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package IPA
+        run: |
+          APP=$(find build/DerivedData/Build/Products -name "*.app" -maxdepth 2 | head -1)
+          echo "APP=$APP"
+          mkdir -p build/Payload
+          cp -R "$APP" build/Payload/
+          cd build && zip -qry AutoClicker.ipa Payload/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AutoClicker.ipa
+          path: build/AutoClicker.ipa
+          if-no-files-found: error
